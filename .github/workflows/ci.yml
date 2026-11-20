@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create .env from example
+        run: cp .env.example .env
+
+      - name: Validate Compose file
+        run: docker compose config -q
+
+      - name: Build and start the stack
+        run: docker compose up -d --build
+
+      - name: Smoke test
+        run: |
+          ok=0
+          for i in $(seq 1 30); do
+            if curl -fs http://localhost/api/health; then ok=1; break; fi
+            sleep 5
+          done
+          [ "$ok" = 1 ]
+          curl -fs -X POST http://localhost/api/tasks -H "Content-Type: application/json" -d '{"title":"ci test"}'
+          curl -fs http://localhost/api/tasks
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
