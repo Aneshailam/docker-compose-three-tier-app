@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Task Manager</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 560px; margin: 40px auto; padding: 0 16px; }
+    form { display: flex; gap: 8px; margin-bottom: 20px; }
+    input { flex: 1; padding: 8px; }
+    button { padding: 8px 14px; cursor: pointer; }
+    ul { list-style: none; padding: 0; }
+    li { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #ddd; }
+    #status { color: #666; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>Task Manager</h1>
+  <p id="status"></p>
+  <form id="add-form">
+    <input id="title" placeholder="New task" required maxlength="200">
+    <button type="submit">Add</button>
+  </form>
+  <ul id="list"></ul>
+
+  <script>
+    const list = document.getElementById("list");
+    const status = document.getElementById("status");
+
+    async function load() {
+      try {
+        const res = await fetch("/api/tasks");
+        const data = await res.json();
+        list.innerHTML = "";
+        data.tasks.forEach(function (task) {
+          const li = document.createElement("li");
+          const span = document.createElement("span");
+          span.textContent = task.title;
+          const btn = document.createElement("button");
+          btn.textContent = "Delete";
+          btn.onclick = async function () {
+            await fetch("/api/tasks/" + task.id, { method: "DELETE" });
+            load();
+          };
+          li.append(span, btn);
+          list.appendChild(li);
+        });
+        status.textContent = data.tasks.length + " task(s)";
+      } catch (e) {
+        status.textContent = "Could not reach the API.";
+      }
+    }
+
+    document.getElementById("add-form").addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const input = document.getElementById("title");
+      await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: input.value })
+      });
+      input.value = "";
+      load();
+    });
+
+    load();
+  </script>
+</body>
+</html>
